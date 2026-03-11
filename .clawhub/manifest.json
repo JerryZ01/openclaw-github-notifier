@@ -1,0 +1,42 @@
+{
+  "name": "github-notifier",
+  "version": "1.0.0",
+  "description": "Monitor GitHub repositories for PRs, issues, and notifications. Get real-time alerts and auto-generated response drafts.",
+  "author": "JerryZ01",
+  "license": "MIT",
+  "repository": "https://github.com/JerryZ01/openclaw-skills/tree/main/github-notifier",
+  "keywords": [
+    "github",
+    "notification",
+    "monitor",
+    "pr",
+    "issue",
+    "openclaw",
+    "skill"
+  ],
+  "main": "github_notifier.py",
+  "files": [
+    "SKILL.md",
+    "github_notifier.py",
+    "README.md",
+    "test.py"
+  ],
+  "requirements": [
+    "requests"
+  ],
+  "commands": {
+    "watch": "Add a repository to watch list",
+    "unwatch": "Remove a repository from watch list",
+    "list": "List all watched repositories",
+    "check": "Check for new notifications",
+    "reply": "Generate reply draft for PR/issue",
+    "report": "Generate daily summary report"
+  },
+  "permissions": [
+    "github_api"
+  ],
+  "config": {
+    "github_token_env": "GITHUB_TOKEN",
+    "check_interval": 30
+  }
+}
