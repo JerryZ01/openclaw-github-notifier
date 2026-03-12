@@ -162,5 +162,19 @@ This skill was developed and tested on 2026-03-12. It successfully:
 - Detects new PRs and issues
 - Generates notification summaries
 - Creates AI-powered reply drafts
+- Provides repository statistics
+- Tracks recent activity (PRs, issues, commits, releases)
+- Detects @mentions
 
 The skill is production-ready and has been tested with real GitHub repositories (HKUDS/CLI-Anything).
+
+### Test Results (2026-03-12)
+
+```
+✅ All 6 tests passed
+✅ 7 notifications detected
+✅ Stats API working (7578 stars, 676 forks)
+✅ Activity tracking working (28 PRs, 21 Issues in 7 days)
+✅ Reply generation working
+✅ Daily report generation working
+```
