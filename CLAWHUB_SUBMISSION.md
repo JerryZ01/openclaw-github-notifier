@@ -150,8 +150,10 @@ MIT License - See LICENSE file for details
 - [x] SKILL.md complete
 - [x] manifest.json configured
 - [x] Version 1.0.0 tagged
+- [x] GitHub Release created
 - [x] License included
 - [x] Documentation complete
+- [ ] Submitted to ClawdHub
 
 ## Notes for ClawdHub Reviewers
 
