@@ -263,9 +263,129 @@ class GitHubNotifier:
             }
         }
     
-    def daily_report(self) -> str:
+    def get_repo_stats(self, repo: str) -> Dict:
+        """获取仓库统计信息
+        
+        Args:
+            repo: 仓库全名
+            
+        Returns:
+            统计数据
+        """
+        owner, name = repo.split('/')
+        url = f"{self.api_base}/repos/{owner}/{name}"
+        response = requests.get(url, headers=self.headers)
+        
+        if response.status_code != 200:
+            return {'error': f'Failed to get stats: {response.status_code}'}
+        
+        data = response.json()
+        return {
+            'stars': data.get('stargazers_count', 0),
+            'forks': data.get('forks_count', 0),
+            'watchers': data.get('watchers_count', 0),
+            'open_issues': data.get('open_issues_count', 0),
+            'subscribers': data.get('subscribers_count', 0),
+            'language': data.get('language', ''),
+            'updated_at': data.get('updated_at', '')
+        }
+    
+    def get_recent_activity(self, repo: str, days: int = 7) -> Dict:
+        """获取最近 N 天的仓库活动
+        
+        Args:
+            repo: 仓库全名
+            days: 天数
+            
+        Returns:
+            活动统计
+        """
+        owner, name = repo.split('/')
+        since = (datetime.now() - timedelta(days=days)).isoformat()
+        
+        activity = {
+            'prs': 0,
+            'issues': 0,
+            'commits': 0,
+            'releases': 0
+        }
+        
+        # 获取 PR
+        pr_url = f"{self.api_base}/repos/{owner}/{name}/pulls"
+        pr_response = requests.get(pr_url, headers=self.headers, params={'state': 'all', 'per_page': 100})
+        if pr_response.status_code == 200:
+            for pr in pr_response.json():
+                if pr['created_at'] > since:
+                    activity['prs'] += 1
+        
+        # 获取 Issue
+        issue_url = f"{self.api_base}/repos/{owner}/{name}/issues"
+        issue_response = requests.get(issue_url, headers=self.headers, params={'state': 'all', 'per_page': 100})
+        if issue_response.status_code == 200:
+            for issue in issue_response.json():
+                if 'pull_request' not in issue and issue['created_at'] > since:
+                    activity['issues'] += 1
+        
+        # 获取 Commits
+        commits_url = f"{self.api_base}/repos/{owner}/{name}/commits"
+        commits_response = requests.get(commits_url, headers=self.headers, params={'per_page': 100, 'since': since})
+        if commits_response.status_code == 200:
+            activity['commits'] = len(commits_response.json())
+        
+        # 获取 Releases
+        releases_url = f"{self.api_base}/repos/{owner}/{name}/releases"
+        releases_response = requests.get(releases_url, headers=self.headers)
+        if releases_response.status_code == 200:
+            for release in releases_response.json():
+                if release['created_at'] > since:
+                    activity['releases'] += 1
+        
+        return activity
+    
+    def check_mentions(self) -> List[Dict]:
+        """检查@提及
+        
+        Returns:
+            提及列表
+        """
+        mentions = []
+        
+        # 获取当前用户
+        user_url = f"{self.api_base}/user"
+        user_response = requests.get(user_url, headers=self.headers)
+        if user_response.status_code != 200:
+            return mentions
+        
+        username = user_response.json()['login']
+        
+        # 搜索提及
+        search_url = f"{self.api_base}/search/issues"
+        search_params = {
+            'q': f'"{username}" in:comment author:not:{username}',
+            'sort': 'updated',
+            'per_page': 10
+        }
+        search_response = requests.get(search_url, headers=self.headers, params=search_params)
+        
+        if search_response.status_code == 200:
+            for item in search_response.json().get('items', []):
+                mentions.append({
+                    'type': 'mention',
+                    'repo': item['repository_url'].split('/')[-2] + '/' + item['repository_url'].split('/')[-1],
+                    'number': item['number'],
+                    'title': item['title'],
+                    'url': item['html_url'],
+                    'updated_at': item['updated_at']
+                })
+        
+        return mentions
+    
+    def daily_report(self, include_stats: bool = True) -> str:
         """生成每日汇总报告
         
+        Args:
+            include_stats: 是否包含仓库统计
+            
         Returns:
             报告文本
         """
@@ -285,15 +405,20 @@ class GitHubNotifier:
                 if merged_prs:
                     for pr in merged_prs[:3]:
                         report += f"  ✅ PR #{pr['number']} merged ({pr['title']})\n"
+                
+                # 检查今天新开的 PR
+                new_prs = [pr for pr in pr_response.json() if pr['state'] == 'open']
+                if new_prs:
+                    report += f"  🔀 {len(new_prs)} open PRs\n"
             
             # 获取仓库统计
-            repo_url = f"{self.api_base}/repos/{owner}/{name}"
-            repo_response = requests.get(repo_url, headers=self.headers)
-            
-            if repo_response.status_code == 200:
-                repo_data = repo_response.json()
-                report += f"🌟 {repo_data.get('stargazers_count', 0)} stars\n"
-                report += f"🍴 {repo_data.get('forks_count', 0)} forks\n"
+            if include_stats:
+                stats = self.get_repo_stats(repo)
+                if 'error' not in stats:
+                    report += f"  🌟 {stats['stars']} stars"
+                    if stats['forks'] > 0:
+                        report += f"  🍴 {stats['forks']} forks"
+                    report += "\n"
             
             report += "\n"
         
@@ -361,8 +486,49 @@ def main(command: str = None):
     elif cmd == 'report':
         return notifier.daily_report()
     
+    elif cmd == 'stats':
+        if len(parts) < 2:
+            # 显示所有监控仓库的统计
+            if not notifier.watched_repos:
+                return "No watched repositories"
+            result = "📊 Repository Stats:\n\n"
+            for repo in notifier.watched_repos:
+                stats = notifier.get_repo_stats(repo)
+                if 'error' not in stats:
+                    result += f"🏗️ {repo}\n"
+                    result += f"   🌟 {stats['stars']} stars  🍴 {stats['forks']} forks\n"
+                    result += f"   📝 {stats['open_issues']} open issues\n"
+                    if stats['language']:
+                        result += f"   💻 {stats['language']}\n"
+                    result += "\n"
+            return result
+        else:
+            stats = notifier.get_repo_stats(parts[1])
+            return json.dumps(stats, indent=2, ensure_ascii=False)
+    
+    elif cmd == 'activity':
+        days = int(parts[2]) if len(parts) > 2 else 7
+        if len(parts) < 2:
+            return "Usage: /github-notifier activity owner/repo [days]"
+        activity = notifier.get_recent_activity(parts[1], days)
+        return f"📈 {parts[1]} - Last {days} days:\n" + \
+               f"  🔀 {activity['prs']} PRs\n" + \
+               f"  📝 {activity['issues']} Issues\n" + \
+               f"  💻 {activity['commits']} Commits\n" + \
+               f"  📦 {activity['releases']} Releases"
+    
+    elif cmd == 'mentions':
+        mentions = notifier.check_mentions()
+        if not mentions:
+            return "No recent mentions"
+        result = f"📬 {len(mentions)} mentions:\n\n"
+        for m in mentions[:10]:
+            result += f"🔔 [{m['repo']}] #{m['number']}: {m['title']}\n"
+            result += f"   {m['url']}\n"
+        return result
+    
     else:
-        return f"Unknown command: {cmd}"
+        return f"Unknown command: {cmd}\nCommands: watch, unwatch, list, check, reply, report, stats, activity, mentions"
 
 
 if __name__ == '__main__':

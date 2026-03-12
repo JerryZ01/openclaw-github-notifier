@@ -30,7 +30,10 @@
     "list": "List all watched repositories",
     "check": "Check for new notifications",
     "reply": "Generate reply draft for PR/issue",
-    "report": "Generate daily summary report"
+    "report": "Generate daily summary report",
+    "stats": "Get repository statistics (stars, forks, issues)",
+    "activity": "Get recent activity for a repository",
+    "mentions": "Check @mentions across watched repositories"
   },
   "permissions": [
     "github_api"

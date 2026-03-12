@@ -44,6 +44,9 @@ Token 已从 MEMORY.md 自动读取，无需额外配置。
 | `check [repo]` | 检查通知 | `/github-notifier check` |
 | `reply <pr\|issue> <number>` | 生成回复草稿 | `/github-notifier reply pr 33` |
 | `report` | 每日汇总报告 | `/github-notifier report` |
+| `stats [repo]` | 仓库统计 | `/github-notifier stats JerryZ01/CLI-Anything` |
+| `activity <repo> [days]` | 最近 N 天活动 | `/github-notifier activity JerryZ01/CLI-Anything 7` |
+| `mentions` | 检查@提及 | `/github-notifier mentions` |
 
 ## 🔔 通知类型
 
