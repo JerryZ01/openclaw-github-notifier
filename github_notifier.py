@@ -29,7 +29,11 @@ class GitHubNotifier:
                 content = memory_path.read_text()
                 for line in content.split('\n'):
                     if 'Personal Access Token:' in line:
-                        self.token = line.split(':')[1].strip()
+                        # Handle markdown formatting (e.g., "**Token:** value")
+                        token_part = line.split(':')[-1].strip()
+                        # Remove markdown bold/italic markers
+                        import re
+                        self.token = re.sub(r'\*+', '', token_part).strip()
                         break
         
         if not self.token:
